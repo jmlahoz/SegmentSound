@@ -1,10 +1,10 @@
 # Syllabify
 # José María Lahoz-Bengoechea (jmlahoz@ucm.es)
-# Version 2023-11-06
+# Version 2025-04-01
 
 # LICENSE
-# (C) 2023 José María Lahoz-Bengoechea
-# This file is part of the plugin_AdvancedEdit and the plugin_EasyAlignSPA
+# (C) 2025 José María Lahoz-Bengoechea
+# This file is part of the plugin_SegmentSound.
 # This is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License
 # as published by the Free Software Foundation
