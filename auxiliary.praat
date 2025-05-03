@@ -1,6 +1,6 @@
 # Auxiliary functions for Praat
 # José María Lahoz-Bengoechea (jmlahoz@ucm.es)
-# Version 2022-07-01
+# Version 2025-05-03
 
 # LICENSE
 # (C) 2022 José María Lahoz-Bengoechea
@@ -19,7 +19,8 @@
 
 # This file is a repository of functions that are invoked from other Praat scripts
 # developed by José María Lahoz-Bengoechea.
-# The procedure (or function) findtierbyname was originally written by Jean Philippe Goldman.
+# Some procedures (or functions): findtierbyname, mystrip, removepunct, removespaces
+# were originally written by Jean-Philippe Goldman.
 
 
 # Suggested citation:
@@ -53,30 +54,39 @@ endproc
 ##}
 
 
+##{ restoreview
+# This restores the visible window and selection in an editor view.
+procedure restoreview
+Select... w_ini w_end
+Zoom to selection
+Select... selini selend
+endproc
+##}
+
+
 ##{ findtierbyname
 # This gets the tier number for a tier of a specific name.
 # You may force the exit if such tier does not exist by setting .v1 to value 1 (instead of 0).
 # You may force the exit if such tier is not an interval tier by setting .v2 to value 1 (instead of 0).
 procedure findtierbyname .name$ .v1 .v2
-  .n = Get number of tiers
-  .return = 0
-  for .i to .n
-    .tmp$ = Get tier name... '.i'
-	.tmp$ = replace$(.tmp$,"/","",0)
-    if .tmp$ == .name$
-      .return = .i
-    endif
-  endfor
-  if  (.return == 0) and (.v1 > 0)
-    exit Tier ''.name$'' not found in TextGrid. Exiting...
-  endif
-  if  (.return > 0) and (.v2 > 0)
-    .i = Is interval tier... '.return'
-    if .i == 0
-      exit Tier number '.return' named '.name$' is not an interval tier. Exiting...
-    endif
-  endif
-
+.n = Get number of tiers
+.return = 0
+for .i to .n
+.tmp$ = Get tier name... '.i'
+.tmp$ = replace$(.tmp$,"/","",0)
+if .tmp$ == .name$
+.return = .i
+endif
+endfor
+if  (.return == 0) and (.v1 > 0)
+exit Tier ''.name$'' not found in TextGrid. Exiting...
+endif
+if  (.return > 0) and (.v2 > 0)
+.isint = Is interval tier... '.return'
+if .isint == 0
+exit Tier number '.return' named '.name$' is not an interval tier. Exiting...
+endif
+endif
 endproc
 ##}
 
@@ -141,6 +151,12 @@ procedure getinfo .makeSoundCopy
 editorinfo$ = Editor info
 data_type$ = extractLine$ (editorinfo$, "Data type: ")
 data_name$ = extractLine$ (editorinfo$, "Data name: ")
+editor_start = extractNumber(editorinfo$,"Editor start: ")
+editor_end = extractNumber(editorinfo$,"Editor end: ")
+w_ini = extractNumber(editorinfo$,"Window start: ")
+w_end = extractNumber(editorinfo$,"Window end: ")
+selini = extractNumber(editorinfo$,"Selection start: ")
+selend = extractNumber(editorinfo$,"Selection end: ")
 
 endeditor
 @getws
@@ -152,8 +168,6 @@ socopy = 0
 if .makeSoundCopy = 1
 .ini = Get start of selection
 .end = Get end of selection
-editor_start = extractNumber(editorinfo$,"Editor start: ")
-editor_end = extractNumber(editorinfo$,"Editor end: ")
 Select... 'editor_start' 'editor_end'
 socopy = Extract selected sound (preserve times)
 Select... '.ini' '.end'
@@ -164,8 +178,6 @@ socopy = 0
 if .makeSoundCopy = 1
 .ini = Get start of selection
 .end = Get end of selection
-editor_start = extractNumber(editorinfo$,"Editor start: ")
-editor_end = extractNumber(editorinfo$,"Editor end: ")
 Select... 'editor_start' 'editor_end'
 socopy = Extract selected sound (preserve times)
 Select... '.ini' '.end'
@@ -924,48 +936,6 @@ endif
 endproc
 ##}
 
-##{ removepunct
-# Removes punctuation marks from a given string
-procedure removepunct .arg$
-      .arg$=replace$(.arg$,""""," ",0)
-      .arg$=replace$(.arg$,"/"," ",0)
-      .arg$=replace$(.arg$,"("," ",0)
-      .arg$=replace$(.arg$,")"," ",0)
-      .arg$=replace$(.arg$,"."," ",0)
-      .arg$=replace$(.arg$,"¿"," ",0)
-      .arg$=replace$(.arg$,"¡"," ",0)
-      .arg$=replace$(.arg$,"?"," ",0)
-      .arg$=replace$(.arg$,"!"," ",0)
-      .arg$=replace$(.arg$,";"," ",0)
-      .arg$=replace$(.arg$,":"," ",0)
-      .arg$=replace$(.arg$,","," ",0)
-      .arg$=replace$(.arg$,"«"," ",0)
-      .arg$=replace$(.arg$,"»"," ",0)
-      .arg$=replace$(.arg$,"#"," ",0)
-      .arg$=replace$(.arg$,"|"," ",0)
-      .arg$=replace$(.arg$,"<"," ",0)
-      .arg$=replace$(.arg$,">"," ",0)
-      .arg$=replace$(.arg$,"*"," ",0)
-      .arg$=replace_regex$(.arg$,"\t"," ",0)
-      .arg$=replace$(.arg$," - "," ",0)
-
-endproc
-##}
-
-##{ removespaces
-# Removes leading or trailing spaces and removes multiple spaces
-procedure removespaces arg1 arg2 arg3 .arg$
-while (arg1=1) and (left$(.arg$,1)=" ") 		;remove leading spaces
-.arg$ = right$(.arg$,length(.arg$)-1)
-endwhile
-while (arg2=1) and (right$(.arg$,1)=" ") 		;remove trailing spaces
-.arg$ = left$(.arg$,length(.arg$)-1)
-endwhile
-if (arg3=1) and (index(.arg$,"  ")!=0)	        ;remove multiple spaces
-.arg$=replace_regex$(.arg$," + "," ",0)
-endif
-endproc
-##}
 
 ##{ toipa
 # Converts any given interval tier to strict IPA
@@ -1129,3 +1099,79 @@ endfor
 
 endproc
 ##}
+
+
+##{ mystrip
+# Removes punctuation and spaces, and adapts other punctuation-related issues
+procedure mystrip separate_the_quote delete_the_dash remove_punct .arg$
+# Replace quote by true-quote
+.arg$=replace$(.arg$,"’","'",0)
+# Add space after ,
+.arg$=replace$(.arg$,",",", ",0)
+
+# Add space after '
+if separate_the_quote==1
+.arg$=replace$(.arg$,"'","' ",0)
+endif
+
+# Delete dashes
+if delete_the_dash==1
+.arg$=replace$(.arg$,"-"," ",0)
+endif
+
+# Remove punctuation
+if remove_punct
+call removepunct '.arg$'
+.arg$=removepunct.arg$
+endif
+
+# Remove exceeding spaces (leading, trailing, or multiple)
+call removespaces 1 1 1 '.arg$'
+.arg$ = removespaces.arg$
+endproc
+##}
+
+
+##{ removepunct
+# Removes punctuation marks from a given string
+procedure removepunct .arg$
+.arg$=replace$(.arg$,""""," ",0)
+.arg$=replace$(.arg$,"/"," ",0)
+.arg$=replace$(.arg$,"("," ",0)
+.arg$=replace$(.arg$,")"," ",0)
+.arg$=replace$(.arg$,"."," ",0)
+.arg$=replace$(.arg$,"¿"," ",0)
+.arg$=replace$(.arg$,"¡"," ",0)
+.arg$=replace$(.arg$,"?"," ",0)
+.arg$=replace$(.arg$,"!"," ",0)
+.arg$=replace$(.arg$,";"," ",0)
+.arg$=replace$(.arg$,":"," ",0)
+.arg$=replace$(.arg$,","," ",0)
+.arg$=replace$(.arg$,"«"," ",0)
+.arg$=replace$(.arg$,"»"," ",0)
+.arg$=replace$(.arg$,"#"," ",0)
+.arg$=replace$(.arg$,"|"," ",0)
+.arg$=replace$(.arg$,"<"," ",0)
+.arg$=replace$(.arg$,">"," ",0)
+.arg$=replace$(.arg$,"*"," ",0)
+.arg$=replace_regex$(.arg$,"\t"," ",0)
+.arg$=replace$(.arg$," - "," ",0)
+endproc
+##}
+
+
+##{ removespaces
+# Removes leading or trailing spaces and removes multiple spaces
+procedure removespaces arg1 arg2 arg3 .arg$
+while (arg1 = 1) and (left$(.arg$,1)=" ") ; remove leading spaces
+.arg$ = right$(.arg$,length(.arg$)-1)
+endwhile
+while (arg2 = 1) and (right$(.arg$,1)=" ") ; remove trailing spaces
+.arg$ = left$(.arg$,length(.arg$)-1)
+endwhile
+if (arg3 = 1) and (index(.arg$,"  ")!=0) ; remove multiple space
+.arg$ = replace_regex$(.arg$," + "," ",0)
+endif
+endproc
+##}
+

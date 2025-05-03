@@ -1,4 +1,4 @@
-# Syllabify
+# syllabify
 # José María Lahoz-Bengoechea (jmlahoz@ucm.es)
 # Version 2025-04-01
 
